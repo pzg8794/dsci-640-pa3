@@ -60,14 +60,63 @@ public abstract class ImageDataSet {
         //be getting these on each forward pass
 
         if (channelAvgs == null) {
-            //TODO: You need to implement this for Programming Assignment 3 - Part 1
-            //You need to calculate the mean of each channel (there is only one 
-            //channel for CIFAR but 3 for CIFAR-10), set the classes's
-            //channelAvgs here so it isn't recalculated
-
+            calculateChannelAvgs();
         }
-
+    
         return channelAvgs;
+    }
+    
+    /**
+     * Calculates the average pixel value for each channel.
+     */
+    private void calculateChannelAvgs() {
+        //DONE: You need to implement this for Programming Assignment 3 - Part 1
+        //You need to calculate the mean of each channel (there is only one 
+        //channel for CIFAR but 3 for CIFAR-10), set the classes's
+        //channelAvgs here so it isn't recalculated
+    
+        int numChannels = getNumberChannels();
+        int height = getNumberRows();
+        int width = getNumberCols();
+        int totalPixelsPerChannel = getNumberImages() * height * width;
+    
+        double[] sum = new double[numChannels];
+    
+        for (Image image : images) {
+            accumulateChannelSums(sum, image);
+        }
+    
+        calculateChannelAverages(sum, totalPixelsPerChannel);
+    }
+    
+    /**
+     * Accumulates the pixel values for each channel.
+     */
+    private void accumulateChannelSums(double[] sum, Image image) {
+        byte[][][] pixels = image.pixels; // [channel][col][row]
+        int numChannels = getNumberChannels();
+        int height = getNumberRows();
+        int width = getNumberCols();
+    
+        for (int c = 0; c < numChannels; c++) {
+            for (int y = 0; y < width; y++) {         // Note: cols first
+                for (int x = 0; x < height; x++) {    // Then rows
+                    sum[c] += Byte.toUnsignedInt(pixels[c][y][x]);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Calculates and stores the channel averages.
+     */
+    private void calculateChannelAverages(double[] sum, int totalPixelsPerChannel) {
+        int numChannels = getNumberChannels();
+        channelAvgs = new double[numChannels];
+        
+        for (int c = 0; c < numChannels; c++) {
+            channelAvgs[c] = sum[c] / totalPixelsPerChannel;
+        }
     }
 
     /**
@@ -80,16 +129,66 @@ public abstract class ImageDataSet {
         //be getting these on each forward pass
 
         if (channelStdDevs == null) {
-            //TODO: You need to implement this for Programming Assignment 3 - Part 1
-            //You need to calculate the standard deviation of each channel (there is only one 
-            //channel for CIFAR but 3 for CIFAR-10), and this will require
-            //the previously computed averages. set the classes's
-            //channelStdDevs here so it isn't recalculated
-            //Make sure you use Byte.toUnsignedInt to convert the bytes
-
+            calculateChannelStdDevs(avgs);
         }
 
         return channelStdDevs;
+    }
+
+    /**
+     * Calculates the standard deviation of each channel.
+     */
+    private void calculateChannelStdDevs(double[] avgs) {
+        //DONE: You need to implement this for Programming Assignment 3 - Part 1
+        //You need to calculate the standard deviation of each channel (there is only one 
+        //channel for CIFAR but 3 for CIFAR-10), and this will require
+        //the previously computed averages. set the classes's
+        //channelStdDevs here so it isn't recalculated
+        //Make sure you use Byte.toUnsignedInt to convert the bytes
+
+        int numChannels = getNumberChannels();
+        int height = getNumberRows();
+        int width = getNumberCols();
+        int totalPixelsPerChannel = getNumberImages() * height * width;
+
+        double[] sumSqDiff = new double[numChannels];
+
+        for (Image image : images) {
+            accumulateSumSquareDifferences(sumSqDiff, avgs, image);
+        }
+
+        calculateStandardDeviations(sumSqDiff, totalPixelsPerChannel);
+    }
+
+    /**
+     * Accumulates the sum of squared differences for standard deviation calculation.
+     */
+    private void accumulateSumSquareDifferences(double[] sumSqDiff, double[] avgs, Image image) {
+        byte[][][] pixels = image.pixels;
+        int numChannels = getNumberChannels();
+        int height = getNumberRows();
+        int width = getNumberCols();
+
+        for (int c = 0; c < numChannels; c++) {
+            for (int y = 0; y < width; y++) {
+                for (int x = 0; x < height; x++) {
+                    int val = Byte.toUnsignedInt(pixels[c][y][x]);
+                    sumSqDiff[c] += Math.pow(val - avgs[c], 2);
+                }
+            }
+        }
+    }
+
+    /**
+     * Calculates and stores the standard deviations for each channel.
+     */
+    private void calculateStandardDeviations(double[] sumSqDiff, int totalPixelsPerChannel) {
+        int numChannels = getNumberChannels();
+        channelStdDevs = new double[numChannels];
+        
+        for (int c = 0; c < numChannels; c++) {
+            channelStdDevs[c] = Math.sqrt(sumSqDiff[c] / totalPixelsPerChannel);
+        }
     }
 
     /**

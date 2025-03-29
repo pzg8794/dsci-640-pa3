@@ -1,10 +1,8 @@
 package network;
 
-import java.util.List;
-
 import data.Image;
 import data.ImageDataSet;
-
+import java.util.List;
 import util.Log;
 
 
@@ -169,11 +167,167 @@ public class ConvolutionalNeuralNetwork {
     }
 
     public void createLeNet5(ActivationType activationType, int batchSize, int inputChannels, int inputY, int inputX, int inputPadding, int outputLayerSize) throws NeuralNetworkException {
-        //TODO: Programming Assignment 3 - Part 1: Implement creating a LeNet-5 CNN
-        //make sure dropout is turned off on the last hidden layer
+        //DONE: Programming Assignment 3 - Part 1: Implement creating a LeNet-5 CNN make sure dropout is turned off on the last hidden layer
+        //We have 8 layers in total
+        layers = new ConvolutionalNode[8][];
+    
+        // Input Layer
+        initializeInputLayer(activationType, batchSize, inputChannels, inputY, inputX, inputPadding);
 
+        // First Hidden Layer
+        initializeFirstHiddenLayer(activationType, batchSize, inputChannels);
+
+        // Second Hidden Layer (Max Pooling Layer)
+        initializeSecondHiddenLayer(activationType, batchSize);
+
+        // Third Hidden Layer (Partially Connected Layer)
+        initializeThirdHiddenLayer(activationType, batchSize);
+
+        // Fourth Hidden Layer (Pooling Layer)
+        initializeFourthHiddenLayer(activationType, batchSize);
+
+        // Fifth Hidden Layer (Dense Layer)
+        initializeFifthHiddenLayer(activationType, batchSize);
+
+        // Sixth Hidden Layer (Dense Layer)
+        initializeSixthHiddenLayer(activationType, batchSize);
+
+        // Output Layer (Fully Connected Layer)
+        initializeOutputLayer(activationType, batchSize);
     }
 
+    /**
+     * Initializes the input layer.
+     */
+    private void initializeInputLayer(ActivationType activationType, int batchSize, int inputChannels, int inputY, int inputX, int inputPadding) {
+        layers[0] = new ConvolutionalNode[1];
+        layers[0][0] = new ConvolutionalNode(0, 0, NodeType.INPUT, activationType, inputPadding, batchSize, inputChannels, inputY, inputX, useDropout, inputDropoutRate, false, 0.0);
+    }
+
+    /**
+     * Initializes the first hidden layer with 6 nodes.
+     * @throws NeuralNetworkException 
+     */
+    private void initializeFirstHiddenLayer(ActivationType activationType, int batchSize, int inputChannels) throws NeuralNetworkException {
+        layers[1] = new ConvolutionalNode[6];
+        for (int i = 0; i < 6; i++) {
+            layers[1][i] = new ConvolutionalNode(1, i, NodeType.HIDDEN, activationType, 0, batchSize, 1, 28, 28, useDropout, hiddenDropoutRate, useBatchNormalization, alpha);
+            numberWeights += layers[1][i].getNumberWeights();
+
+            // Edge between input layer and first hidden layer
+            new ConvolutionalEdge(layers[0][0], layers[1][i], inputChannels, 5, 5);
+            numberWeights += inputChannels * 5 * 5;
+        }
+    }
+
+    /**
+     * Initializes the second hidden layer (Pooling Layer) with 6 nodes.
+     * @throws NeuralNetworkException 
+     */
+    private void initializeSecondHiddenLayer(ActivationType activationType, int batchSize) throws NeuralNetworkException {
+        layers[2] = new ConvolutionalNode[6];
+        for (int i = 0; i < 6; i++) {
+            layers[2][i] = new ConvolutionalNode(2, i, NodeType.HIDDEN, activationType, 0, batchSize, 1, 14, 14, useDropout, hiddenDropoutRate, useBatchNormalization, alpha);
+            numberWeights += layers[2][i].getNumberWeights();
+
+            // Pooling operation
+            new PoolingEdge(layers[1][i], layers[2][i], 2, 2);
+        }
+    }
+
+    /**
+     * Initializes the third hidden layer (Partially Connected Layer) with 16 nodes.
+     * Partially connected according to specified connection scheme.
+     * @throws NeuralNetworkException 
+     */
+    private void initializeThirdHiddenLayer(ActivationType activationType, int batchSize)  throws NeuralNetworkException {
+        layers[3] = new ConvolutionalNode[16];
+        int[][][] connections = {
+            {{0}, {1}, {2}}, {{1}, {2}, {3}}, {{2}, {3}, {4}}, {{3}, {4}, {5}},
+            {{4}, {5}, {0}}, {{5}, {0}, {1}}, {{0}, {1}, {2}, {3}}, {{1}, {2}, {3}, {4}},
+            {{2}, {3}, {4}, {5}}, {{3}, {4}, {5}, {0}}, {{4}, {5}, {0}, {1}}, {{5}, {0}, {1}, {2}},
+            {{0}, {1}, {3}, {4}}, {{1}, {2}, {4}, {5}}, {{0}, {2}, {3}, {5}}, {{0}, {1}, {2}, {3}, {4}, {5}}
+        };
+
+        for (int i = 0; i < 16; i++) {
+            layers[3][i] = new ConvolutionalNode(3, i, NodeType.HIDDEN, activationType, 0, batchSize, 1, 10, 10, useDropout, hiddenDropoutRate, useBatchNormalization, alpha);
+            numberWeights += layers[3][i].getNumberWeights();
+
+            // Creating partially connected edges
+            for (int[] connection : connections[i]) {
+                new ConvolutionalEdge(layers[2][connection[0]], layers[3][i], 1, 5, 5);
+                numberWeights += 5 * 5;
+            }
+        }
+    }
+    /**
+     * Initializes the fourth hidden layer (Pooling Layer) with 16 nodes.
+     * @throws NeuralNetworkException 
+     */
+    private void initializeFourthHiddenLayer(ActivationType activationType, int batchSize)  throws NeuralNetworkException {
+        layers[4] = new ConvolutionalNode[16];
+        for (int i = 0; i < 16; i++) {
+            layers[4][i] = new ConvolutionalNode(4, i, NodeType.HIDDEN, activationType, 0, batchSize, 1, 5, 5, useDropout, hiddenDropoutRate, useBatchNormalization, alpha);
+            numberWeights += layers[4][i].getNumberWeights();
+
+            // Pooling operation
+            new PoolingEdge(layers[3][i], layers[4][i], 2, 2); //stride of 2 and pool size of 2
+        }
+    }
+
+    /**
+     * Initializes the fifth hidden layer (Dense Layer) with 120 nodes.
+     * @throws NeuralNetworkException 
+     */
+    private void initializeFifthHiddenLayer(ActivationType activationType, int batchSize)  throws NeuralNetworkException {
+        layers[5] = new ConvolutionalNode[120];
+        for (int i = 0; i < 120; i++) {
+            layers[5][i] = new ConvolutionalNode(5, i, NodeType.HIDDEN, activationType, 0, batchSize, 1, 1, 1, useDropout, hiddenDropoutRate, useBatchNormalization, alpha);
+            numberWeights += layers[5][i].getNumberWeights();
+
+            // Connecting previous layer (16 nodes) to the current layer (120 nodes)
+            for (int j = 0; j < 16; j++) {
+                new ConvolutionalEdge(layers[4][j], layers[5][i], 1, 5, 5);
+                numberWeights += 5 * 5;
+            }
+        }
+    }
+
+    /**
+     * Initializes the sixth hidden layer (Dense Layer) with 84 nodes.
+     * @throws NeuralNetworkException 
+     */
+    private void initializeSixthHiddenLayer(ActivationType activationType, int batchSize)  throws NeuralNetworkException {
+        layers[6] = new ConvolutionalNode[84];
+        for (int i = 0; i < 84; i++) {
+            layers[6][i] = new ConvolutionalNode(6, i, NodeType.HIDDEN, activationType, 0, batchSize, 1, 1, 1, useDropout, hiddenDropoutRate, useBatchNormalization, alpha);
+            numberWeights += layers[6][i].getNumberWeights();
+
+            // Connecting previous layer (120 nodes) to the current layer (84 nodes)
+            for (int j = 0; j < 120; j++) {
+                new ConvolutionalEdge(layers[5][j], layers[6][i], 1, 1, 1);
+                numberWeights += 1;
+            }
+        }
+    }
+
+    /**
+     * Initializes the output layer (Fully Connected Layer) with 10 nodes.
+     * @throws NeuralNetworkException 
+     */
+    private void initializeOutputLayer(ActivationType activationType, int batchSize)  throws NeuralNetworkException {
+        layers[7] = new ConvolutionalNode[10];
+        for (int i = 0; i < 10; i++) {
+            layers[7][i] = new ConvolutionalNode(7, i, NodeType.OUTPUT, activationType, 0, batchSize, 1, 1, 1, false, 0.0, false, 0.0);
+
+            // Connecting previous layer (84 nodes) to the output layer (10 nodes)
+            for (int j = 0; j < 84; j++) {
+                new ConvolutionalEdge(layers[6][j], layers[7][i], 1, 1, 1);
+                numberWeights += 1;
+            }
+        }
+        
+    }
     public ConvolutionalNeuralNetwork(LossFunction lossFunction, boolean useDropout, double inputDropoutRate, double hiddenDropoutRate, boolean useBatchNormalization, double alpha) {
         this.lossFunction = lossFunction;
         this.useDropout = useDropout;
@@ -314,14 +468,62 @@ public class ConvolutionalNeuralNetwork {
     /**
      * This initializes the weights in the RNN using either Xavier or
      * Kaiming initialization.
-    *
+     *
      * @param type will be either "xavier" or "kaiming" and this will
      * initialize the child nodes accordingly, using their helper methods.
      * @param bias is the value to set the bias of each node to.
-     */
-    public void initializeRandomly(String type, double bias) {
-        //TODO: You need to implement this for Programming Assignment 3 - Part 1
+     * @throws NeuralNetworkException 
+    */
+    public void initializeRandomly(String type, double bias) throws NeuralNetworkException {
+        //DONE: You need to implement this for Programming Assignment 3 - Part 1
+        for (int layer = 1; layer < layers.length; layer++) { // skip input layer
+            for (int nodeNumber = 0; nodeNumber < layers[layer].length; nodeNumber++) {
+                ConvolutionalNode node = layers[layer][nodeNumber];
 
+                // Calculate fanIn and fanOut for this node
+                int fanIn = calculateFanIn(node);
+                int fanOut = calculateFanOut(node);
+
+                // Initialize weights based on the specified type
+                if (type.equalsIgnoreCase("kaiming")) {
+                    node.initializeWeightsAndBiasKaiming(bias, fanIn);
+                } else if (type.equalsIgnoreCase("xavier")) {
+                    node.initializeWeightsAndBiasXavier(bias, fanIn, fanOut);
+                } else {
+                    throw new NeuralNetworkException("Unknown initialization type: " + type);
+                }
+            }
+        }
+    }
+
+    /**
+     * Calculates the fanIn value for a given node by summing the sizes of its input edges.
+     * This is used for weight initialization.
+     * 
+     * @param node The ConvolutionalNode for which to calculate fanIn.
+     * @return The calculated fanIn value.
+     */
+    private int calculateFanIn(ConvolutionalNode node) {
+        int fanIn = 0;
+        for (Edge e : node.inputEdges) {
+            fanIn += e.sizeZ * e.sizeY * e.sizeX;
+        }
+        return fanIn;
+    }
+
+    /**
+     * Calculates the fanOut value for a given node by summing the sizes of its output edges.
+     * This is used for weight initialization.
+     * 
+     * @param node The ConvolutionalNode for which to calculate fanOut.
+     * @return The calculated fanOut value.
+     */
+    private int calculateFanOut(ConvolutionalNode node) {
+        int fanOut = 0;
+        for (Edge e : node.outputEdges) {
+            fanOut += e.sizeZ * e.sizeY * e.sizeX;
+        }
+        return fanOut;
     }
 
 
@@ -338,42 +540,88 @@ public class ConvolutionalNeuralNetwork {
      */
     public double forwardPass(ImageDataSet imageDataSet, int startIndex, int batchSize, boolean training) throws NeuralNetworkException {
         //be sure to reset before doing a forward pass
-        reset();
+        reset();  
 
         //set input values differently for time series and character sequences
 
         //set the input nodes for each time step in the CharacterSequence
+        setInputValues(imageDataSet, startIndex, batchSize);
 
+        //DONE: You need to implement propagating forward for each node (output nodes need
+        //to be propagated forward for their recurrent connections to further time steps) for Programming Assignment 3 - Part 1
+        //NOTE: This shouldn't need to be changed for Programming Assignment 2 - Parts 2 or 3
+        propagateForward(training);
+
+        // Calculate loss based on the specified loss function
+        return calculateLoss(imageDataSet, batchSize);
+    }
+
+    /**
+     * Sets the input values for the network.
+     */
+    private void setInputValues(ImageDataSet imageDataSet, int startIndex, int batchSize) throws NeuralNetworkException {
         List<Image> images = imageDataSet.getImages(startIndex, batchSize);
 
         for (int number = 0; number < layers[0].length; number++) {
             ConvolutionalNode inputNode = layers[0][number];
             inputNode.setValues(images, imageDataSet.getChannelAvgs(), imageDataSet.getChannelStdDevs(imageDataSet.getChannelAvgs()));
         }
+    }
 
-        //TODO: You need to implement propagating forward for each node (output nodes need
-        //to be propagated forward for their recurrent connections to further time steps)
-        //for Programming Assignment 3 - Part 1
-        //NOTE: This shouldn't need to be changed for Programming Assignment 2 - Parts 2 or 3
+    /**
+     * Propagates forward through all layers except the input layer.
+     */
+    private void propagateForward(boolean training) throws NeuralNetworkException {
+        for (int layer = 0; layer < layers.length; layer++) {
+            for (int nodeNumber = 0; nodeNumber < layers[layer].length; nodeNumber++) {
+                layers[layer][nodeNumber].propagateForward(training);
+            }
+        }
+    }
 
-
-
-        //The following is needed for Programming Assignment 2 - Part 1
+    /**
+     * Calculates the loss based on the specified loss function.
+     */
+    private double calculateLoss(ImageDataSet imageDataSet, int batchSize) throws NeuralNetworkException {
         int outputLayer = layers.length - 1;
         int nOutputs = layers[outputLayer].length;
+        List<Image> images = imageDataSet.getImages(0, batchSize);
 
-        //note that the target value for any time step is the sequence value at that time step + 1
-        //this means you should only go up to length - 1 time steps in calculating the loss
         double lossSum = 0;
 
         if (lossFunction == LossFunction.SVM) {
-            //TODO: Implement this for Programming Assignment 3 - Part 1, be sure
+            //DONE: Implement this for Programming Assignment 3 - Part 1, be sure
             //to calculate for each image in the batch
+            for (int i = 0; i < batchSize; i++) {
+                int label = images.get(i).label;
 
+                for (int j = 0; j < nOutputs; j++) {
+                    if (j == label) continue;
+                    double correctOutput = layers[outputLayer][label].outputValues[i][0][0][0];
+                    double compareOutput = layers[outputLayer][j].outputValues[i][0][0][0];
+                    lossSum += Math.max(0.0, 1 - correctOutput + compareOutput);
+                }
+            }
         } else if (lossFunction == LossFunction.SOFTMAX) {
-            //TODO: Implement this for Programming Assignment 3 - Part 1, be sure
+            //DONE: Implement this for Programming Assignment 3 - Part 1, be sure
             //to calculate for each image in the batch
+            for (int i = 0; i < batchSize; i++) {
+                int label = images.get(i).label;
 
+                double max = Double.NEGATIVE_INFINITY;
+                for (int j = 0; j < nOutputs; j++) {
+                    double out = layers[outputLayer][j].outputValues[i][0][0][0];
+                    if (out > max) max = out;
+                }
+
+                double sumExp = 0;
+                for (int j = 0; j < nOutputs; j++) {
+                    sumExp += Math.exp(layers[outputLayer][j].outputValues[i][0][0][0] - max);
+                }
+
+                double logProb = layers[outputLayer][label].outputValues[i][0][0][0] - max - Math.log(sumExp);
+                lossSum -= logProb;
+            }
         } else {
             throw new NeuralNetworkException("Could not do a CharacterSequence forward pass on ConvolutionalNeuralNetwork because lossFunction was unknown or invalid: " + lossFunction);
         }

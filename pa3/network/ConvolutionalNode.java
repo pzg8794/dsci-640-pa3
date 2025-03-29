@@ -495,94 +495,165 @@ public class ConvolutionalNode {
      * to all it's output nodes.
      */
     public void propagateForward(boolean training) {
-        //TODO: You need to implement this for Programming Assignment 3 - Part 1
-
+        //DONE: You need to implement this for Programming Assignment 3 - Part 1
         if (nodeType == NodeType.HIDDEN) {
             //batch normalization happens after the activation function but before dropout
             if (useBatchNormalization) {
-                //TODO: Implement this for Programming Assignment 3 - Part 3
-                if (training) {
-                    //do training version of batch normalization
-
-                } else {
-                    //do inference version of batch normalization
-
-                }
+                processBatchNormalization(training);
             }
-
-            //don't forget to use the outputs of batchnorm as the
-            //inputs to your activation functions (as opposed to
-            //just the inputs)
-            double[][][][] inputs;
-            if (useBatchNormalization) {
-                inputs = afterBatchNorm;
-            } else {
-                inputs = inputValues;
+            
+            //don't forget to use the outputs of batchnorm as the inputs to your activation functions (as opposed to just the inputs)
+            double[][][][] inputs = useBatchNormalization ? afterBatchNorm : inputValues;
+    
+            switch (activationType) {
+                case NONE:
+                    applyNoActivation(inputs);
+                    break;
+                case RELU:
+                    applyReLUActivation(inputs);
+                    break;
+                case RELU5:
+                    applyReLU5Activation(inputs);
+                    break;
+                case LEAKY_RELU5:
+                    applyLeakyReLU5Activation(inputs);
+                    break;
             }
-
-            if (activationType == ActivationType.NONE) {
-                for (int i = 0; i < batchSize; i++) {
-                    for (int z = 0; z < sizeZ; z++) {
-                        for (int y = 0; y < sizeY; y++) {
-                            for (int x = 0; x < sizeX; x++) {
-                                outputValues[i][z][y][x] = inputs[i][z][y][x] + bias[z][y][x];
-                            }
-                        }
-                    }
-                }
-
-            } else if (activationType == ActivationType.RELU) {
-                //TODO: Implement this for PA3-1
-
-            } else if (activationType == ActivationType.RELU5) {
-                //TODO: Implement this for PA3-1
-
-            } else if (activationType == ActivationType.LEAKY_RELU5) {
-                //TODO: Implement this for PA3-1
-                //use a leak value of 0.01 for values < 0
-                double leak = 0.01;
-
-            }
-
         } else if (nodeType == NodeType.OUTPUT) {
-            //no batch norm or bias on the output layer
+            applyOutputProcessing();
+        }
+        
+        //dropout happens after the activation function
+        if (useDropout && (nodeType == NodeType.HIDDEN || nodeType == NodeType.INPUT)) {
+            //we can use dropout on either hidden or input nodes
+            processDropout(training);
+        }
+    
+        propagateToOutputEdges();
+    }
+    
+    /**
+     * Applies batch normalization to the inputs if enabled.
+     */
+    private void processBatchNormalization(boolean training) {
+        //TODO: Implement this for Programming Assignment 3 - Part 3
+        if (training) {
+            //do training version of batch normalization
 
-            for (int i = 0; i < batchSize; i++) {
-                for (int z = 0; z < sizeZ; z++) {
-                    for (int y = 0; y < sizeY; y++) {
-                        for (int x = 0; x < sizeX; x++) {
-                            double inputValue = inputValues[i][z][y][x];
-                            outputValues[i][z][y][x] = inputValue;
-                        }
+        } else {
+            //do inference version of batch normalization
+
+        }
+    }
+    
+    /**
+     * Applies no activation function to the inputs.
+     */
+    private void applyNoActivation(double[][][][] inputs) {
+        for (int i = 0; i < batchSize; i++) {
+            for (int z = 0; z < sizeZ; z++) {
+                for (int y = 0; y < sizeY; y++) {
+                    for (int x = 0; x < sizeX; x++) {
+                        outputValues[i][z][y][x] = inputs[i][z][y][x] + bias[z][y][x];
                     }
                 }
             }
         }
-
-        //dropout happens after the activation function
-        if (nodeType == NodeType.HIDDEN || nodeType == NodeType.INPUT) {
-            //we can use dropout on either hidden or input nodes
-            if (useDropout) {
-                //TODO: Implement this for Programming Assignment 3 - Part 3
-                //NOTE: please use generator.nextDouble() to deterine if a 
-                //cell is used or not -- the unit tests to check correctness
-                //will not work if you use Math.random().
-
-                if (training) {
-                    //do training version of dropout
-
-                } else {
-                    //do inference version of dropout
-                    //since we're doing inverted dropout this 
-                    //doesn't need to do anything
+    }
+    
+    /**
+     * Applies ReLU activation function to the inputs.
+     */
+    private void applyReLUActivation(double[][][][] inputs) {
+        for (int i = 0; i < batchSize; i++) {
+            for (int z = 0; z < sizeZ; z++) {
+                for (int y = 0; y < sizeY; y++) {
+                    for (int x = 0; x < sizeX; x++) {
+                        double val = inputs[i][z][y][x] + bias[z][y][x];
+                        outputValues[i][z][y][x] = Math.max(0.0, val);
+                    }
                 }
             }
         }
+    }
+    
+    /**
+     * Applies ReLU5 activation function to the inputs.
+     */
+    private void applyReLU5Activation(double[][][][] inputs) {
+        for (int i = 0; i < batchSize; i++) {
+            for (int z = 0; z < sizeZ; z++) {
+                for (int y = 0; y < sizeY; y++) {
+                    for (int x = 0; x < sizeX; x++) {
+                        double val = inputs[i][z][y][x] + bias[z][y][x];
+                        outputValues[i][z][y][x] = Math.min(5.0, Math.max(0.0, val));
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Applies Leaky ReLU5 activation function to the inputs.
+     */
+    private void applyLeakyReLU5Activation(double[][][][] inputs) {
+        double leak = 0.01;
+        for (int i = 0; i < batchSize; i++) {
+            for (int z = 0; z < sizeZ; z++) {
+                for (int y = 0; y < sizeY; y++) {
+                    for (int x = 0; x < sizeX; x++) {
+                        double val = inputs[i][z][y][x] + bias[z][y][x];
+                        if (val < 0) val *= leak;
+                        outputValues[i][z][y][x] = Math.min(5.0, val);
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Processes the output layer (no batch norm or bias).
+     */
+    private void applyOutputProcessing() {
+        for (int i = 0; i < batchSize; i++) {
+            for (int z = 0; z < sizeZ; z++) {
+                for (int y = 0; y < sizeY; y++) {
+                    for (int x = 0; x < sizeX; x++) {
+                        double inputValue = inputValues[i][z][y][x];
+                        outputValues[i][z][y][x] = inputValue;
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Processes dropout during training.
+     */
+    private void processDropout(boolean training) {
+        //TODO: Implement this for Programming Assignment 3 - Part 3
+        //NOTE: please use generator.nextDouble() to deterine if a 
+        //cell is used or not -- the unit tests to check correctness
+        //will not work if you use Math.random().
+        if (training) {
+            //do training version of dropout
 
+        } else {
+            //do inference version of dropout
+            //since we're doing inverted dropout this 
+            //doesn't need to do anything
+        }
+    }
+    
+    /**
+     * Propagates output values to all connected edges.
+     */
+    private void propagateToOutputEdges() {
         for (Edge outputEdge : outputEdges) {
             outputEdge.propagateForward(outputValues);
         }
     }
+    
 
     /**
      * This propagates the delta back from this node
@@ -604,38 +675,66 @@ public class ConvolutionalNode {
             //inputs to your activation functions (as opposed to
             //just the inputs)
             double[][][][] inputs;
-            if (useBatchNormalization) {
-                inputs = afterBatchNorm;
-            } else {
-                inputs = inputValues;
-            }
+            if (useBatchNormalization) {inputs = afterBatchNorm;} 
+            else {inputs = inputValues;}
 
 
             if (activationType == ActivationType.NONE) {
                 //don't need to do change the deltas but
                 //still calculate bias deltas
-
                 for (int i = 0; i < batchSize; i++) {
                     for (int z = 0; z < sizeZ; z++) {
                         for (int y = 0; y < sizeY; y++) {
                             for (int x = 0; x < sizeX; x++) {
                                 biasDelta[i][z][y][x] += delta[i][z][y][x];
-                           }
+                            }
                         }
                     }
                 }
-
             } else if (activationType == ActivationType.RELU) {
-                //TODO: Implement this for PA3-1
-
+                //DONE: Implement this for PA3-1
+                for (int i = 0; i < batchSize; i++) {
+                    for (int z = 0; z < sizeZ; z++) {
+                        for (int y = 0; y < sizeY; y++) {
+                            for (int x = 0; x < sizeX; x++) {
+                                double val = inputs[i][z][y][x] + bias[z][y][x];
+                                double d = (val > 0.0 && val < 5.0) ? 1.0 : 0.0;
+                                delta[i][z][y][x] *= d;
+                                biasDelta[i][z][y][x] += delta[i][z][y][x];
+                            }
+                        }
+                    }
+                }
             } else if (activationType == ActivationType.RELU5) {
-                //TODO: Implement this for PA3-1
-
+                //DONE: Implement this for PA3-1
+                for (int i = 0; i < batchSize; i++) {
+                    for (int z = 0; z < sizeZ; z++) {
+                        for (int y = 0; y < sizeY; y++) {
+                            for (int x = 0; x < sizeX; x++) {
+                                double val = inputs[i][z][y][x] + bias[z][y][x];
+                                double d = (val > 0.0 && val < 5.0) ? 1.0 : 0.0;
+                                delta[i][z][y][x] *= d;
+                                biasDelta[i][z][y][x] += delta[i][z][y][x];
+                            }
+                        }
+                    }
+                }
             } else if (activationType == ActivationType.LEAKY_RELU5) {
-                //TODO: Implement this for PA3-1
+                //DONE: Implement this for PA3-1
                 //use a leak value of 0.01 for values < 0
                 double leak = 0.01;
-
+                for (int i = 0; i < batchSize; i++) {
+                    for (int z = 0; z < sizeZ; z++) {
+                        for (int y = 0; y < sizeY; y++) {
+                            for (int x = 0; x < sizeX; x++) {
+                                double val = inputs[i][z][y][x] + bias[z][y][x];
+                                double d = val < 0 ? leak : (val < 5.0 ? 1.0 : 0.0);
+                                delta[i][z][y][x] *= d;
+                                biasDelta[i][z][y][x] += delta[i][z][y][x];
+                            }
+                        }
+                    }
+                }
             }
 
             //batch normalization happens after the activation function but before dropout
@@ -660,8 +759,45 @@ public class ConvolutionalNode {
      *  @param bias is the bias to initialize this node's bias to
      */
     public void initializeWeightsAndBiasKaiming(double initialBias, int fanIn) {
-        //TODO: You need to implement this for Programming Assignment 3 - Part 1
+        //DONE: You need to implement this for Programming Assignment 3 - Part 1
+        double stdDev = 1.0 / Math.sqrt(fanIn);  // scaling factor for Kaiming
+        Random random = new Random();
 
+        initializeBias(initialBias);
+
+        initializeWeightsKaiming(random, stdDev);
+    }
+
+    /**
+     * Initializes biases to the given initial value.
+     */
+    private void initializeBias(double initialBias) {
+        for (int z = 0; z < sizeZ; z++) {
+            for (int y = 0; y < sizeY; y++) {
+                for (int x = 0; x < sizeX; x++) {
+                    bias[z][y][x] = initialBias;
+                }
+            }
+        }
+    }
+
+    /**
+     * Initializes weights using Kaiming initialization.
+     */
+    private void initializeWeightsKaiming(Random random, double stdDev) {
+        for (Edge edge : inputEdges) {
+            if (edge instanceof ConvolutionalEdge) {
+                ConvolutionalEdge convEdge = (ConvolutionalEdge) edge;
+
+                for (int z = 0; z < convEdge.sizeZ; z++) {
+                    for (int y = 0; y < convEdge.sizeY; y++) {
+                        for (int x = 0; x < convEdge.sizeX; x++) {
+                            convEdge.weight[z][y][x] = random.nextGaussian() * stdDev;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -676,11 +812,45 @@ public class ConvolutionalNode {
      *  @param bias is the bias to initialize this node's bias to
      */
     public void initializeWeightsAndBiasXavier(double initialBias, int fanIn, int fanOut) {
-        //TODO: You need to implement this for Programming Assignment 3 - Part 1
+        //DONE: You need to implement this for Programming Assignment 3 - Part 1
+        double limit = Math.sqrt(6.0) / Math.sqrt(fanIn + fanOut);
 
+        initializeBias(initialBias);
+
+        initializeWeightsXavier(limit);
     }
 
+    /**
+     * Initializes weights using Xavier initialization.
+     */
+    private void initializeWeightsXavier(double limit) {
+        for (Edge edge : inputEdges) {
+            if (edge instanceof ConvolutionalEdge) {
+                ConvolutionalEdge convEdge = (ConvolutionalEdge) edge;
+                for (int z = 0; z < convEdge.weight.length; z++) {
+                    for (int y = 0; y < convEdge.weight[0].length; y++) {
+                        for (int x = 0; x < convEdge.weight[0][0].length; x++) {
+                            convEdge.weight[z][y][x] = (generator.nextDouble() * 2 * limit) - limit;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
+    /**
+     * Returns the fan - in of the node
+     */
+    public int getInputEdgesCount(){
+        return inputEdges.size();
+    }
+    
+    /**
+     * Returns the fan - out of the node
+     */
+    public int getOutputEdgesCount(){
+        return outputEdges.size();
+    }
     /**
      * Prints concise information about this node.
      *

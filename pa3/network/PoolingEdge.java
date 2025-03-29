@@ -5,8 +5,6 @@
  */
 package network;
 
-import java.util.Random;
-
 import util.Log;
 
 public class PoolingEdge extends Edge {
@@ -143,8 +141,74 @@ public class PoolingEdge extends Edge {
      * (i.e., the input values to the max pooling operation)
      */
     public void propagateForward(double[][][][] inputValues) {
-        //TODO: You need to implement this for Programming Assignment 3 - Part 1
+        //DONE: You need to implement this for Programming Assignment 3 - Part 1
 
+        initializeOutputNode(inputValues);
+
+        for (int n = 0; n < batchSize; n++) {
+            for (int d = 0; d < inputNode.sizeZ; d++) {
+                processImageChannel(inputValues, n, d);
+            }
+        }
+    }
+
+    /**
+     * Initializes the output node's inputValues array.
+     */
+    private void initializeOutputNode(double[][][][] inputValues) {
+        int inputDepth = inputNode.sizeZ;
+        int inputHeight = inputNode.sizeY;
+        int inputWidth = inputNode.sizeX;
+
+        int outputHeight = calculateOutputSize(inputHeight);
+        int outputWidth = calculateOutputSize(inputWidth);
+        
+        // Allocate memory for the output node's inputValues
+        outputNode.inputValues = new double[batchSize][inputDepth][outputHeight][outputWidth];
+    }
+
+    /**
+     * Processes a single image channel for max pooling.
+     */
+    private void processImageChannel(double[][][][] inputValues, int imageIndex, int depthIndex) {
+        int outputHeight = outputNode.inputValues[0][0].length;
+        int outputWidth = outputNode.inputValues[0][0][0].length;
+
+        for (int oh = 0; oh < outputHeight; oh++) {
+            for (int ow = 0; ow < outputWidth; ow++) {
+                outputNode.inputValues[imageIndex][depthIndex][oh][ow] = calculateMaxPool(inputValues, imageIndex, depthIndex, oh, ow);
+            }
+        }
+    }
+
+    /**
+     * Calculates the maximum value within a pooling window.
+     */
+    private double calculateMaxPool(double[][][][] inputValues, int imageIndex, int depthIndex, int outHeight, int outWidth) {
+        double maxVal = Double.NEGATIVE_INFINITY;
+
+        int startHeight = outHeight * stride;
+        int startWidth = outWidth * stride;
+
+        for (int kh = 0; kh < poolSize; kh++) {
+            for (int kw = 0; kw < poolSize; kw++) {
+                int ih = startHeight + kh;
+                int iw = startWidth + kw;
+
+                if (ih < inputNode.sizeY && iw < inputNode.sizeX) {
+                    maxVal = Math.max(maxVal, inputValues[imageIndex][depthIndex][ih][iw]);
+                }
+            }
+        }
+
+        return maxVal;
+    }
+
+    /**
+     * Calculates the output size for a given dimension.
+     */
+    private int calculateOutputSize(int inputSize) {
+        return (inputSize - poolSize) / stride + 1;
     }
 
 

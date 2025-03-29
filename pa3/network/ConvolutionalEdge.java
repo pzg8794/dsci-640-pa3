@@ -6,7 +6,6 @@
 package network;
 
 import java.util.Random;
-
 import util.Log;
 
 public class ConvolutionalEdge extends Edge {
@@ -175,8 +174,17 @@ public class ConvolutionalEdge extends Edge {
      * @param range is sqrt(2)/sqrt(sum of output node incoming filter sizes)
      */
     public void initializeKaiming(double range, int fanIn) {
-        //TODO: Implement this for Programming Assignment 3 - Part 1
+        //DONE: Implement this for Programming Assignment 3 - Part 1
+        Random rand = new Random();
 
+        for (int z = 0; z < sizeZ; z++) {
+            for (int y = 0; y < sizeY; y++) {
+                for (int x = 0; x < sizeX; x++) {
+                    // Gaussian distribution: mean = 0, stddev = range
+                    weight[z][y][x] = rand.nextGaussian() * range;
+                }
+            }
+        }
     }
 
     /**
@@ -188,8 +196,17 @@ public class ConvolutionalEdge extends Edge {
      * @param range is sqrt(6)/sqrt(sum of output node incoming and outgoing filter sizes)
      */
     public void initializeXavier(double range, int fanIn, int fanOut) {
-        //TODO: Implement this for Programming Assignment 3 - Part 1
+        //DONE: Implement this for Programming Assignment 3 - Part 1
+        Random rand = new Random();
 
+        for (int z = 0; z < sizeZ; z++) {
+            for (int y = 0; y < sizeY; y++) {
+                for (int x = 0; x < sizeX; x++) {
+                    // Uniform distribution: [-range, +range]
+                    weight[z][y][x] = (rand.nextDouble() * 2 * range) - range;
+                }
+            }
+        }
     }
 
 
@@ -200,9 +217,72 @@ public class ConvolutionalEdge extends Edge {
      * @param delta is the delta/error from the output node.
      */
     public void propagateForward(double[][][][] inputValues) {
-        //TODO: You need to implement this for Programming Assignment 3 - Part 1
+        //DONE: You need to implement this for Programming Assignment 3 - Part 1
+        
+        // Extract padding for clarity
+        int padding = outputNode.padding;
 
+        // Iterate through each image in the batch
+        for(int imgIndex = 0; imgIndex < outputNode.inputValues.length; imgIndex++) {
+            processImage(inputValues, imgIndex, padding);
+        }
     }
+
+    /**
+     * Processes an individual image by iterating over its channels and applying convolution.
+     * 
+     * @param inputValues The input values from the previous layer.
+     * @param imgIndex Index of the image in the batch.
+     * @param padding The padding size for the convolution operation.
+     */
+    private void processImage(double[][][][] inputValues, int imgIndex, int padding) {
+        for(int chIndex = 0; chIndex < outputNode.inputValues[imgIndex].length; chIndex++) {
+            processChannel(inputValues, imgIndex, chIndex, padding);
+        }
+    }
+
+    /**
+     * Processes a single channel of an image, performing convolution over rows and columns.
+     * 
+     * @param inputValues The input values from the previous layer.
+     * @param imgIndex Index of the image in the batch.
+     * @param chIndex Index of the channel being processed.
+     * @param padding The padding size for the convolution operation.
+     */
+    private void processChannel(double[][][][] inputValues, int imgIndex, int chIndex, int padding) {
+        int numRows = outputNode.inputValues[imgIndex][chIndex].length - 2 * padding;
+        int numCols = outputNode.inputValues[imgIndex][chIndex][0].length - 2 * padding;
+
+        for(int col = 0; col < numRows; col++) {
+            for(int row = 0; row < numCols; row++) {
+                applyFilter(inputValues, imgIndex, chIndex, col, row, padding);
+            }
+        }
+    }
+
+    /**
+     * Applies the filter to a specific region of the image and accumulates the result.
+     * 
+     * @param inputValues The input values from the previous layer.
+     * @param imgIndex Index of the image in the batch.
+     * @param chIndex Index of the channel being processed.
+     * @param col Current column index of the convolution operation.
+     * @param row Current row index of the convolution operation.
+     * @param padding The padding size for the convolution operation.
+     */
+    private void applyFilter(double[][][][] inputValues, int imgIndex, int chIndex, int col, int row, int padding) {
+        for(int filterCh = 0; filterCh < weight.length; filterCh++) {
+            for(int filterCol = 0; filterCol < weight[filterCh].length; filterCol++) {
+                for(int filterRow = 0; filterRow < weight[filterCh][filterCol].length; filterRow++) {
+                    // Apply convolution operation and accumulate the result
+                    outputNode.inputValues[imgIndex][chIndex][col + padding][row + padding] += 
+                        weight[filterCh][filterCol][filterRow] * 
+                        inputValues[imgIndex][chIndex + filterCh][col + filterCol][row + filterRow];
+                }
+            }
+        }
+    }
+
 
 
     /**

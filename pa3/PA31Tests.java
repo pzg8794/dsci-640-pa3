@@ -3,23 +3,16 @@
  * functionality for Programming Assignment 1 - Part 1.
  *
  */
-import java.util.Arrays;
-import java.util.Random;
-
 import data.CIFARDataSet;
 import data.MNISTDataSet;
-
-import network.ConvolutionalNode;
-import network.Edge;
-import network.PoolingEdge;
-import network.ConvolutionalEdge;
-import network.ConvolutionalNeuralNetwork;
-import network.LossFunction;
-import network.NeuralNetworkException;
-
+import java.util.Arrays;
+import java.util.Random;
 import network.ActivationType;
+import network.ConvolutionalEdge;
+import network.ConvolutionalNode;
+import network.NeuralNetworkException;
 import network.NodeType;
-
+import network.PoolingEdge;
 import util.Log;
 
 

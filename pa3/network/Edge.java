@@ -5,8 +5,6 @@
  */
 package network;
 
-import java.util.Random;
-
 import util.Log;
 
 public abstract class Edge {
